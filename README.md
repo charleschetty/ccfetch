@@ -4,7 +4,7 @@ A neofetch like system information tool written in rust.
 ![](https://raw.githubusercontent.com/charleschetty/picturebed/main/picture/2023-11-26_06-31.png)
 
 Currently, ccfetch only support Arch, Debian, and Ubuntu, other Linux distribution/OS may work, but 
-the logo will be displayed as ["TUX"]{https://en.wikipedia.org/wiki/Tux_(mascot)}. 
+the logo will be displayed as ["TUX"](https://en.wikipedia.org/wiki/Tux_(mascot)). 
 
 # Installation
 
