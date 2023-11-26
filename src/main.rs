@@ -9,15 +9,18 @@ use libmacchina::{
     traits::GeneralReadout as _, traits::KernelReadout as _, traits::MemoryReadout as _,
     traits::PackageReadout as _, GeneralReadout, KernelReadout, MemoryReadout, PackageReadout,
 };
-use tools::{
-    format_data,
-    logo::{Archlogo, Logo},
-    split_by_newline_new,
-};
+use tools::{format_data, logo::*, split_by_newline_new};
 
+enum Os {
+    Arch,
+    Debian,
+    Ubuntu,
+    Other,
+}
 fn main() {
     let general_readout = GeneralReadout::new();
     let mut info: Vec<String> = Vec::new();
+    let mut os_name: Os = Os::Other;
 
     let hardware_info = "┌───────── Hardware Information ─────────┐ ".to_string();
     info.push(hardware_info);
@@ -95,10 +98,21 @@ fn main() {
     match get_distro(&general_readout) {
         Ok(distro) => {
             if &distro == "Arch Linux" {
+                os_name = Os::Arch;
                 let disto_info = format_data(" ", &distro, _CYAN);
                 info.push(disto_info);
+            } else if &distro == "Ubuntu Linux" {
+                os_name = Os::Ubuntu;
+                let disto_info = format_data(" ", &distro, _CYAN);
+                info.push(disto_info);
+            } else if &distro == "Debian Linux" {
+                os_name = Os::Debian;
+                let disto_info = format_data(" ", &distro, _CYAN);
+                info.push(disto_info);
             } else {
-                //todo
+                os_name = Os::Other;
+                let disto_info = format_data("󰌽 ", &distro, _CYAN);
+                info.push(disto_info);
             }
         }
         Err(_) => {}
@@ -154,9 +168,11 @@ fn main() {
 
     let package_readout = PackageReadout::new();
     match get_packages(&package_readout) {
-        Ok(package) => {
-            let package_info = format_data("󰏖 ", &package, _CYAN);
-            info.push(package_info);
+        Ok(packages) => {
+            for package in packages {
+                let package_info = format_data("󰏖 ", &package, _CYAN);
+                info.push(package_info);
+            }
         }
         Err(_) => {}
     }
@@ -175,26 +191,47 @@ fn main() {
     let colorinfo = get_color();
     info.push(colorinfo);
 
-    let logo = Archlogo::new(_CYAN);
-    let arch_logo = logo.getlogo();
-    let arcginfo = split_by_newline_new(&arch_logo);
-    print_left_to_right(arcginfo, info);
+    let mut logo_info: Vec<String>;
+    match os_name {
+        Os::Arch => {
+            let logo = Archlogo::new(_CYAN).getlogo();
+            logo_info = split_by_newline_new(&logo);
+        }
+        Os::Debian => {
+            let logo = Debianlogo::new(_CYAN).getlogo();
+            logo_info = split_by_newline_new(&logo);
+        }
+        Os::Ubuntu => {
+            let logo = Ubuntulogo::new(_CYAN).getlogo();
+            logo_info = split_by_newline_new(&logo);
+        }
+        Os::Other => {
+            let logo = Otherlogo::new(_CYAN).getlogo();
+            logo_info = split_by_newline_new(&logo);
+        }
+    }
+    print_left_to_right(&mut logo_info, &mut info);
 }
 
-fn print_left_to_right(left: Vec<String>, right: Vec<String>) {
+fn print_left_to_right(left: &mut Vec<String>, right: &mut Vec<String>) {
     let left_len = left.len();
     let right_len = right.len();
+
     let max_len = if left_len > right_len {
         left_len
     } else {
+        let to_push = left[left_len - 1].clone();
+        for _i in 0..(right_len - left_len) {
+            left.push(to_push.clone());
+        }
         right_len
     };
 
     for i in 0..max_len {
-        if i < left_len {
+        if i < left.len() {
             print!("{}", left[i]);
         }
-        if i < right_len {
+        if i < right.len() {
             print!("{}", right[i]);
         }
 

@@ -113,27 +113,29 @@ pub fn get_terminal(general_readout: &GeneralReadout) -> Result<String, ReadoutE
     general_readout.terminal()
 }
 
-pub fn get_packages(package_readout: &PackageReadout) -> Result<String,String> {
+pub fn get_packages(package_readout: &PackageReadout) -> Result<Vec<String>, String> {
     let package_count = package_readout.count_pkgs();
-    let mut manager = "".to_string();
-    let mut num: usize = 0;
+    let mut res: Vec<String> = Vec::new();
+    // let mut manager = "".to_string();
+    // let mut num: usize = 0;
     for item in package_count {
         match item.0 {
-            PackageManager::Pacman => {
-                manager = item.0.to_string();
-                num = item.1;
-                break;
+            PackageManager::Cargo =>{
+                continue;
             }
             _ => {
-                return Err("Not support yet".to_string());
+                let manager = item.0.to_string();
+                let num = item.1;
+
+                res.push(format!("{num} ({manager})"));
             }
         }
     }
 
-    Ok(format!("{num} ({manager})"))
+    Ok(res)
 }
 
-pub fn get_uptime(general_readout: &GeneralReadout) -> Result<String,ReadoutError> {
+pub fn get_uptime(general_readout: &GeneralReadout) -> Result<String, ReadoutError> {
     let uptime = general_readout.uptime()?;
 
     let days = if uptime > 86400 {
