@@ -3,7 +3,7 @@ mod tools;
 use crate::tools::color::*;
 use info::info::{
     get_battery, get_cpu_info, get_de, get_disk, get_distro, get_gpu, get_kernel, get_memory,
-    get_model, get_packages, get_resolution, get_shell, get_terminal, get_uptime, get_user, get_wm,
+    get_model, get_packages, get_resolution, get_shell, get_terminal, get_uptime, get_user, get_wm, get_resolution_x11,
 };
 use libmacchina::{
     traits::GeneralReadout as _, traits::KernelReadout as _, traits::PackageReadout as _,
@@ -17,6 +17,8 @@ enum Os {
     Ubuntu,
     Other,
 }
+
+
 fn main() {
     let general_readout = GeneralReadout::new();
     let mut info: Vec<String> = Vec::new();
@@ -69,7 +71,11 @@ fn main() {
 
     match get_resolution(&general_readout) {
         Ok(resolution) => {
-            let res_info = format_data(" ", &resolution, _CYAN);
+            let mut resolution_tmp = resolution.clone();
+            if &resolution.len()<&2{
+                resolution_tmp = get_resolution_x11().unwrap();
+            }
+            let res_info = format_data(" ", &resolution_tmp, _CYAN);
             info.push(res_info);
         }
         Err(_) => {}
@@ -145,9 +151,9 @@ fn main() {
         Ok(shell) => {
             let mut shell_n = "";
             for _i in 0..1 {
-                shell_n = shell.split("\n").next().unwrap();
+                shell_n = shell.split('\n').next().unwrap();
             }
-            let shell_info = format_data(" ", &shell_n, _CYAN);
+            let shell_info = format_data(" ", shell_n, _CYAN);
             info.push(shell_info);
         }
         Err(_) => {}
@@ -157,9 +163,9 @@ fn main() {
         Ok(terminal) => {
             let mut terminal_n = "";
             for _i in 0..1 {
-                terminal_n = terminal.split("\n").next().unwrap();
+                terminal_n = terminal.split('\n').next().unwrap();
             }
-            let terminal_info = format_data(" ", &terminal_n, _CYAN);
+            let terminal_info = format_data(" ", terminal_n, _CYAN);
             info.push(terminal_info);
         }
         Err(_) => {}

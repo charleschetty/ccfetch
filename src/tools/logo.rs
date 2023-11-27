@@ -1,5 +1,4 @@
 use crate::_BOLD;
-use crate::_GREEN;
 use crate::_RESET;
 
 pub trait Logo {

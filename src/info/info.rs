@@ -57,6 +57,27 @@ pub fn get_resolution(general_readout: &GeneralReadout) -> Result<String, Readou
     general_readout.resolution()
 }
 
+pub fn get_resolution_x11() -> Result<String, ReadoutError> {
+    use x11rb::connection::Connection;
+
+    let mut resolution: Vec<String> = vec![];
+    if let Ok(conn) = x11rb::connect(None) {
+        let screens = &conn.0.setup().roots;
+        for s in screens {
+            let width = s.width_in_pixels;
+            let height = s.height_in_pixels;
+            // println!("{} , {} , {}" , &width , &height , &color_map);
+            resolution.push(width.to_string() + "x" + &height.to_string())
+        }
+        return Ok(resolution.join(", "));
+
+    }
+
+    Err(ReadoutError::Warning(String::from(
+        "Could not open a connection to the X11 server.",
+    )))
+}
+
 pub fn get_battery() -> Result<String, String> {
     let sys = System::new();
     let charged;
@@ -65,7 +86,7 @@ pub fn get_battery() -> Result<String, String> {
             let remain_cap = (battery.remaining_capacity * 100.0) as i64;
             match sys.on_ac_power() {
                 Ok(power) => {
-                    if power == true {
+                    if power {
                         charged = "Charging".to_string();
                     } else {
                         charged = "Discharging".to_string();
@@ -79,7 +100,7 @@ pub fn get_battery() -> Result<String, String> {
         }
 
         Err(_) => {
-            return Err("no battery".to_string());
+            Err("no battery".to_string())
         }
     }
 }

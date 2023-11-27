@@ -6,7 +6,7 @@ pub mod logo;
 
 pub fn split_by_newline_new(logo: &String) -> Vec<String> {
     let mut split_vec: Vec<String> = Vec::new();
-    for item in logo.split("\n") {
+    for item in logo.split('\n') {
         split_vec.push(item.to_owned());
     }
     split_vec
