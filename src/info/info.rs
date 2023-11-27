@@ -1,14 +1,13 @@
 use libmacchina::{
-    traits::MemoryReadout as _,
     traits::PackageReadout as _,
     traits::{GeneralReadout as _, ReadoutError},
     traits::{KernelReadout as _, PackageManager},
-    GeneralReadout, KernelReadout, MemoryReadout, PackageReadout,
+    GeneralReadout, KernelReadout, PackageReadout,
 };
 
 use systemstat::{Platform, System};
 pub fn get_cpu_info(general_readout: &GeneralReadout) -> Result<String, ReadoutError> {
-    let cpu_cores = general_readout.cpu_cores()?; // 8 [logical cores]
+    let cpu_cores = general_readout.cpu_physical_cores()?; // 8 [logical cores]
     let cpu = general_readout.cpu_model_name()?; // Intel(R) Core(TM) i5-8265U CPU @ 1.60GHz
     let cpu_info = format!("{cpu} ({cpu_cores})",);
     Ok(cpu_info)
@@ -38,12 +37,20 @@ pub fn get_disk(general_readout: &GeneralReadout) -> Result<String, ReadoutError
     }
 }
 
-pub fn get_memory(memory_readout: &MemoryReadout) -> Result<String, ReadoutError> {
-    let total = memory_readout.total()? / 1024;
-    let used = memory_readout.used()? / 1024;
-    let percent = used * 100 / total;
-    let mem_info = format!("{used}M / {total}M ({percent}%)");
-    Ok(mem_info)
+pub fn get_memory() -> Result<String, String> {
+    let sys = System::new();
+    match sys.memory() {
+        Ok(memory) => {
+            let total = memory.total.as_u64() / 1024 / 1024;
+            let used =
+                systemstat::saturating_sub_bytes(memory.total, memory.free).as_u64() / 1024 / 1024;
+
+            let percent = used * 100 / total;
+            let mem_info = format!("{used}M / {total}M ({percent}%)");
+            Ok(mem_info)
+        }
+        Err(_) => Err("no memory".to_string()),
+    }
 }
 
 pub fn get_resolution(general_readout: &GeneralReadout) -> Result<String, ReadoutError> {
@@ -52,8 +59,7 @@ pub fn get_resolution(general_readout: &GeneralReadout) -> Result<String, Readou
 
 pub fn get_battery() -> Result<String, String> {
     let sys = System::new();
-    let mut remain_time = "".to_string();
-    let mut charged = "".to_string();
+    let charged;
     match sys.battery_life() {
         Ok(battery) => {
             let remain_cap = (battery.remaining_capacity * 100.0) as i64;
@@ -61,11 +67,7 @@ pub fn get_battery() -> Result<String, String> {
                 Ok(power) => {
                     if power == true {
                         charged = "Charging".to_string();
-                        // remain_time = format!("[*h *m Remaining]");
                     } else {
-                        // let remain_1 = battery.remaining_time.as_secs() / 3600;
-                        // let remain_2 = battery.remaining_time.as_secs() % 60;
-                        // remain_time = format!("[{remain_1}h {remain_2}m Remaining]");
                         charged = "Discharging".to_string();
                     }
                 }
@@ -73,7 +75,7 @@ pub fn get_battery() -> Result<String, String> {
                     return Err("no power".to_string());
                 }
             };
-            Ok(format!("{remain_cap}% [{charged}] {remain_time}"))
+            Ok(format!("{remain_cap}% [{charged}] "))
         }
 
         Err(_) => {
@@ -120,7 +122,7 @@ pub fn get_packages(package_readout: &PackageReadout) -> Result<Vec<String>, Str
     // let mut num: usize = 0;
     for item in package_count {
         match item.0 {
-            PackageManager::Cargo =>{
+            PackageManager::Cargo => {
                 continue;
             }
             _ => {

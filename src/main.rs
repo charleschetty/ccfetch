@@ -6,8 +6,8 @@ use info::info::{
     get_model, get_packages, get_resolution, get_shell, get_terminal, get_uptime, get_user, get_wm,
 };
 use libmacchina::{
-    traits::GeneralReadout as _, traits::KernelReadout as _, traits::MemoryReadout as _,
-    traits::PackageReadout as _, GeneralReadout, KernelReadout, MemoryReadout, PackageReadout,
+    traits::GeneralReadout as _, traits::KernelReadout as _, traits::PackageReadout as _,
+    GeneralReadout, KernelReadout, PackageReadout,
 };
 use tools::{format_data, logo::*, split_by_newline_new};
 
@@ -59,8 +59,7 @@ fn main() {
         Err(_) => {}
     }
 
-    let memory_readout = MemoryReadout::new();
-    match get_memory(&memory_readout) {
+    match get_memory() {
         Ok(mem) => {
             let mem_info = format_data("󰍛 ", &mem, _CYAN);
             info.push(mem_info);
