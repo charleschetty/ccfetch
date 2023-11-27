@@ -102,15 +102,16 @@ fn main() {
 
     match get_distro(&general_readout) {
         Ok(distro) => {
-            if &distro == "Arch Linux" {
+            let os =  distro.split(' ').next().unwrap();
+            if os == "Arch" {
                 os_name = Os::Arch;
                 let disto_info = format_data(" ", &distro, _CYAN);
                 info.push(disto_info);
-            } else if &distro == "Ubuntu Linux" {
+            } else if &distro == "Ubuntu" {
                 os_name = Os::Ubuntu;
                 let disto_info = format_data(" ", &distro, _CYAN);
                 info.push(disto_info);
-            } else if &distro == "Debian Linux" {
+            } else if &distro == "Debian" {
                 os_name = Os::Debian;
                 let disto_info = format_data(" ", &distro, _CYAN);
                 info.push(disto_info);
