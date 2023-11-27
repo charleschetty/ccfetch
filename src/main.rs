@@ -107,11 +107,11 @@ fn main() {
                 os_name = Os::Arch;
                 let disto_info = format_data(" ", &distro, _CYAN);
                 info.push(disto_info);
-            } else if &distro == "Ubuntu" {
+            } else if os == "Ubuntu" {
                 os_name = Os::Ubuntu;
                 let disto_info = format_data(" ", &distro, _CYAN);
                 info.push(disto_info);
-            } else if &distro == "Debian" {
+            } else if os == "Debian" {
                 os_name = Os::Debian;
                 let disto_info = format_data(" ", &distro, _CYAN);
                 info.push(disto_info);
