@@ -21,3 +21,7 @@ cargo build --release
 
 - [ ] More logos
 - [ ] User configuration 
+
+
+# Reference 
+This project inspired by [pfetch-rs](https://github.com/Gobidev/pfetch-rs), [treefetch](https://github.com/angelofallars/treefetch), and [macchina](https://github.com/Macchina-CLI/macchina) 

@@ -73,7 +73,12 @@ fn main() {
         Ok(resolution) => {
             let mut resolution_tmp = resolution.clone();
             if &resolution.len()<&2{
-                resolution_tmp = get_resolution_x11().unwrap();
+                match get_resolution_x11(){
+                    Ok(val) => {
+                        resolution_tmp = val
+                    },
+                    Err(_) => {},
+                }
             }
             let res_info = format_data(" ", &resolution_tmp, _CYAN);
             info.push(res_info);
