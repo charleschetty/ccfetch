@@ -9,7 +9,7 @@ edition = "2021"
 libmacchina = "7"
 systemstat = "0.2.3"
 x11rb = "0.12.0"
-
+crossterm = "0.27.0"
 
 [profile.release]
 opt-level = 3

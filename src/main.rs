@@ -3,7 +3,8 @@ mod tools;
 use crate::tools::color::*;
 use info::info::{
     get_battery, get_cpu_info, get_de, get_disk, get_distro, get_gpu, get_kernel, get_memory,
-    get_model, get_packages, get_resolution, get_shell, get_terminal, get_uptime, get_user, get_wm, get_resolution_x11,
+    get_model, get_packages, get_resolution, get_resolution_x11, get_shell, get_terminal,
+    get_uptime, get_user, get_wm,
 };
 use libmacchina::{
     traits::GeneralReadout as _, traits::KernelReadout as _, traits::PackageReadout as _,
@@ -17,7 +18,6 @@ enum Os {
     Ubuntu,
     Other,
 }
-
 
 fn main() {
     let general_readout = GeneralReadout::new();
@@ -72,12 +72,10 @@ fn main() {
     match get_resolution(&general_readout) {
         Ok(resolution) => {
             let mut resolution_tmp = resolution.clone();
-            if &resolution.len()<&2{
-                match get_resolution_x11(){
-                    Ok(val) => {
-                        resolution_tmp = val
-                    },
-                    Err(_) => {},
+            if &resolution.len() < &2 {
+                match get_resolution_x11() {
+                    Ok(val) => resolution_tmp = val,
+                    Err(_) => {}
                 }
             }
             let res_info = format_data(" ", &resolution_tmp, _CYAN);
@@ -107,7 +105,7 @@ fn main() {
 
     match get_distro(&general_readout) {
         Ok(distro) => {
-            let os =  distro.split(' ').next().unwrap();
+            let os = distro.split(' ').next().unwrap();
             if os == "Arch" {
                 os_name = Os::Arch;
                 let disto_info = format_data(" ", &distro, _CYAN);
@@ -239,6 +237,8 @@ fn print_left_to_right(left: &mut Vec<String>, right: &mut Vec<String>) {
     };
 
     for i in 0..max_len {
+        crossterm::execute!(std::io::stdout(), crossterm::terminal::DisableLineWrap)
+            .unwrap_or_default();
         if i < left.len() {
             print!("{}", left[i]);
         }
@@ -247,5 +247,7 @@ fn print_left_to_right(left: &mut Vec<String>, right: &mut Vec<String>) {
         }
 
         println!();
+        crossterm::execute!(std::io::stdout(), crossterm::terminal::EnableLineWrap)
+            .unwrap_or_default();
     }
 }
