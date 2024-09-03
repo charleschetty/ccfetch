@@ -82,6 +82,7 @@ name = "ccfetch"
 version = "0.1.0"
 dependencies = [
  "crossterm",
+ "libc",
  "libmacchina",
  "systemstat",
  "x11rb",

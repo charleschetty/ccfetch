@@ -6,6 +6,12 @@ use libmacchina::{
 };
 
 use systemstat::{Platform, System};
+
+use libc::{c_ulong, statvfs};
+use std::ffi::CString;
+use std::mem;
+use std::os::raw::c_char;
+
 pub fn get_cpu_info(general_readout: &GeneralReadout) -> Result<String, ReadoutError> {
     let cpu_cores = general_readout.cpu_physical_cores()?; // 8 [logical cores]
     let cpu = general_readout.cpu_model_name()?; // Intel(R) Core(TM) i5-8265U CPU @ 1.60GHz
@@ -24,17 +30,40 @@ pub fn get_gpu(general_readout: &GeneralReadout) -> Result<Vec<String>, ReadoutE
     }
 }
 
-pub fn get_disk(general_readout: &GeneralReadout) -> Result<String, ReadoutError> {
-    match general_readout.disk_space() {
-        Ok(disk) => {
-            let total = disk.1 / 1024 / 1024 / 1024;
-            let used = disk.0 / 1024 / 1024 / 1024;
-            let percent = used * 100 / total;
-            let info = format!("{used}G / {total}G ({percent}%)");
-            Ok(info)
-        }
-        Err(err) => Err(err),
+// pub fn get_disk(general_readout: &GeneralReadout) -> Result<String, ReadoutError> {
+//     match general_readout.disk_space() {
+//         Ok(disk) => {
+//             let total = disk.1 / 1024 / 1024 / 1024;
+//             let used = disk.0 / 1024 / 1024 / 1024;
+//             let percent = used * 100 / total;
+//             let info = format!("{used}G / {total}G ({percent}%)");
+//             Ok(info)
+//         }
+//         Err(err) => Err(err),
+//     }
+// }
+
+pub fn get_disk() -> Result<String, String> {
+    let path = "/";
+    let c_path = CString::new(path).expect("CString::new failed");
+
+    let mut stat: statvfs = unsafe { mem::zeroed() };
+
+    if unsafe { statvfs(c_path.as_ptr() as *const c_char, &mut stat) } != 0 {
+        return Err("can not get disk information".to_string());
     }
+
+    let total_space: c_ulong = stat.f_blocks * stat.f_frsize;
+    let free_space: c_ulong = stat.f_bfree * stat.f_frsize;
+    let used_space: c_ulong = total_space - free_space;
+    //
+    let percent = used_space * 100/ total_space;
+    let total_space_gb = total_space / (1024 * 1024 * 1024);
+    let used_space_gb = used_space / (1024 * 1024 * 1024);
+
+    let info = format!("{used_space_gb}G / {total_space_gb}G ({percent}%)");
+
+    return Ok(info);
 }
 
 pub fn get_memory() -> Result<String, String> {
@@ -70,7 +99,6 @@ pub fn get_resolution_x11() -> Result<String, ReadoutError> {
             resolution.push(width.to_string() + "x" + &height.to_string())
         }
         return Ok(resolution.join(", "));
-
     }
 
     Err(ReadoutError::Warning(String::from(
@@ -99,9 +127,7 @@ pub fn get_battery() -> Result<String, String> {
             Ok(format!("{remain_cap}% [{charged}] "))
         }
 
-        Err(_) => {
-            Err("no battery".to_string())
-        }
+        Err(_) => Err("no battery".to_string()),
     }
 }
 
