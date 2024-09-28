@@ -6,7 +6,8 @@ use info::info::{
     get_cpu_info, get_disk, get_distro, get_gpu, get_kernel, get_model, get_resolution, get_shell,
     get_terminal, get_uptime, get_user, get_wm,
 };
-use tools::{format_data, logo::*, split_by_newline_new};
+use tools::split_by_newline_new;
+use tools::{format_data, logo::*};
 
 enum Os {
     Arch,
@@ -231,9 +232,9 @@ fn print_left_to_right(left: &mut Vec<String>, right: &mut Vec<String>) {
         right_len
     };
 
+    print!("{}", "\x1B[?7l");
+
     for i in 0..max_len {
-        crossterm::execute!(std::io::stdout(), crossterm::terminal::DisableLineWrap)
-            .unwrap_or_default();
         if i < left.len() {
             print!("{}", left[i]);
         }
@@ -242,7 +243,7 @@ fn print_left_to_right(left: &mut Vec<String>, right: &mut Vec<String>) {
         }
 
         println!();
-        crossterm::execute!(std::io::stdout(), crossterm::terminal::EnableLineWrap)
-            .unwrap_or_default();
     }
+
+    print!("{}", "\x1B[?7h");
 }
