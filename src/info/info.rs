@@ -4,7 +4,7 @@ use std::os::raw::c_char;
 use std::{ffi::CString, fs::File, path::Path};
 use std::{fs, mem};
 
-use crate::tools::{get_device_name_pci, read_pci_devices};
+use crate::tools::{get_device_name_pci, get_gpu_vendor_name, read_pci_devices_and_find_gpu};
 
 pub fn get_cpu_info() -> Result<String, String> {
     let cpuinfo = fs::read_to_string("/proc/cpuinfo").map_err(|e| e.to_string())?;
@@ -53,15 +53,22 @@ pub fn get_model() -> Result<String, String> {
     Ok(cpu_info)
 }
 
-pub fn get_gpu() -> io::Result<Vec<String>> {
-    let devices = read_pci_devices()?;
+pub fn get_gpu() -> Result<Vec<String>, String> {
+    let devices = match read_pci_devices_and_find_gpu() {
+        Ok(devs) => devs,
+        Err(_) => return Err("no gpus".to_string()),
+    };
     let mut gpus = Vec::new();
     for (vendor, device) in devices {
-        match get_device_name_pci(vendor, device)? {
-            Some(name) => {
-                gpus.push(name);
+        let vender_name = get_gpu_vendor_name(&vendor);
+        if vender_name == "Unknown Vendor" {
+            gpus.push(format!("Device {}:{}", vendor, device));
+        }
+        match get_device_name_pci(&vendor, &device) {
+            Ok(Some(name)) => {
+                gpus.push(format!("{} {}", vender_name, name));
             }
-            None => println!("Device not found."),
+            _ => return Err("Device not found.".to_string()),
         }
     }
     Ok(gpus)
