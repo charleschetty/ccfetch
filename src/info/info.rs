@@ -313,6 +313,31 @@ pub fn count_pacman() -> Result<String, String> {
     Err("Error".to_string())
 }
 
+pub fn count_dpkg() -> io::Result<String> {
+    let path = "/var/lib/dpkg/status";
+
+    let file = File::open(path)?;
+    let reader = io::BufReader::new(file);
+
+    let mut count = 0;
+    let mut in_package = false;
+
+    for line in reader.lines() {
+        let line = line?;
+        if line.starts_with("Package: ") {
+            in_package = true;
+        } else if in_package && line.is_empty() {
+            count += 1;
+            in_package = false;
+        }
+    }
+
+    if in_package {
+        count += 1;
+    }
+    return Ok(format!("{} (dpkg)", count));
+}
+
 pub fn get_uptime() -> Result<String, String> {
     let uptime_info = match fs::read_to_string("/proc/uptime") {
         Ok(info) => info,

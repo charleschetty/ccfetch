@@ -3,8 +3,8 @@ mod tools;
 use crate::tools::color::*;
 use info::info::{get_battery, get_memory, get_swap};
 use info::info::{
-    get_cpu_info, get_disk, get_distro, get_gpu, get_kernel, get_model,
-    get_resolution, get_shell, get_terminal, get_uptime, get_user, get_wm,
+    get_cpu_info, get_disk, get_distro, get_gpu, get_kernel, get_model, get_resolution, get_shell,
+    get_terminal, get_uptime, get_user, get_wm,
 };
 use tools::{format_data, logo::*, split_by_newline_new};
 
@@ -74,7 +74,7 @@ fn main() {
 
     match get_resolution() {
         Ok(resolution) => {
-            let  resolution_tmp = resolution;
+            let resolution_tmp = resolution;
             let res_info = format_data(" ", &resolution_tmp, _CYAN);
             info.push(res_info);
         }
@@ -163,12 +163,22 @@ fn main() {
         Err(_) => {}
     }
 
-    match info::info::count_pacman() {
-        Ok(package) => {
-            let package_info = format_data("󰏖 ", &package, _CYAN);
-            info.push(package_info);
-        }
-        Err(_) => {}
+    match os_name {
+        Os::Arch => match info::info::count_pacman() {
+            Ok(package) => {
+                let package_info = format_data("󰏖 ", &package, _CYAN);
+                info.push(package_info);
+            }
+            Err(_) => {}
+        },
+        Os::Debian | Os::Ubuntu => match info::info::count_dpkg() {
+            Ok(package) => {
+                let package_info = format_data("󰏖 ", &package, _CYAN);
+                info.push(package_info);
+            }
+            Err(_) => {}
+        },
+        Os::Other => {}
     }
 
     match get_uptime() {
