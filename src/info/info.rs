@@ -63,12 +63,13 @@ pub fn get_gpu() -> Result<Vec<String>, String> {
         let vender_name = get_gpu_vendor_name(&vendor);
         if vender_name == "Unknown Vendor" {
             gpus.push(format!("Device {}:{}", vendor, device));
-        }
-        match get_device_name_pci(&vendor, &device) {
-            Ok(Some(name)) => {
-                gpus.push(format!("{} {}", vender_name, name));
+        } else {
+            match get_device_name_pci(&vendor, &device) {
+                Ok(Some(name)) => {
+                    gpus.push(format!("{} {}", vender_name, name));
+                }
+                _ => return Err("Device not found.".to_string()),
             }
-            _ => return Err("Device not found.".to_string()),
         }
     }
     Ok(gpus)
