@@ -1,13 +1,10 @@
-use libmacchina::{
-    traits::{GeneralReadout as _, ReadoutError},
-    GeneralReadout,
-};
-
 use libc::{c_ulong, statvfs};
-use std::io::{BufRead, BufReader};
+use std::io::{self, BufRead, BufReader};
 use std::os::raw::c_char;
 use std::{ffi::CString, fs::File, path::Path};
 use std::{fs, mem};
+
+use crate::tools::{get_device_name_pci, read_pci_devices};
 
 pub fn get_cpu_info() -> Result<String, String> {
     let cpuinfo = fs::read_to_string("/proc/cpuinfo").map_err(|e| e.to_string())?;
@@ -56,11 +53,18 @@ pub fn get_model() -> Result<String, String> {
     Ok(cpu_info)
 }
 
-pub fn get_gpu(general_readout: &GeneralReadout) -> Result<Vec<String>, ReadoutError> {
-    match general_readout.gpus() {
-        Ok(gpus) => Ok(gpus.clone()),
-        Err(err) => Err(err),
+pub fn get_gpu() -> io::Result<Vec<String>> {
+    let devices = read_pci_devices()?;
+    let mut gpus = Vec::new();
+    for (vendor, device) in devices {
+        match get_device_name_pci(vendor, device)? {
+            Some(name) => {
+                gpus.push(name);
+            }
+            None => println!("Device not found."),
+        }
     }
+    Ok(gpus)
 }
 
 pub fn get_disk() -> Result<String, String> {
@@ -112,16 +116,22 @@ pub fn get_memory() -> Result<String, String> {
 
     let mut total_memory = 0;
     let mut free_memory = 0;
+    let mut number_read = 0;
 
     for line in meminfo.lines() {
         if line.starts_with("MemTotal:") {
             if let Some(value) = line.split_whitespace().nth(1) {
                 total_memory = value.parse::<u64>().unwrap_or(0);
+                number_read += 1;
             }
         } else if line.starts_with("MemAvailable:") {
             if let Some(value) = line.split_whitespace().nth(1) {
                 free_memory = value.parse::<u64>().unwrap_or(0);
+                number_read += 1;
             }
+        }
+        if number_read >= 2 {
+            break;
         }
     }
 
@@ -134,6 +144,49 @@ pub fn get_memory() -> Result<String, String> {
 
     let used_memory_mb = used_memory / 1024;
     let total_memory_mb = total_memory / 1024;
+
+    let info = format!("{used_memory_mb}M / {total_memory_mb}M ({percent}%)");
+    Ok(info)
+}
+
+pub fn get_swap() -> Result<String, String> {
+    let meminfo = fs::read_to_string("/proc/meminfo")
+        .map_err(|e| format!("can not read /proc/meminfo: {}", e))?;
+
+    let mut total_swap = 0;
+    let mut free_swap = 0;
+    let mut number_read = 0;
+
+    for line in meminfo.lines() {
+        if line.starts_with("SwapTotal:") {
+            if let Some(value) = line.split_whitespace().nth(1) {
+                total_swap = value.parse::<u64>().unwrap_or(0);
+                number_read += 1;
+            }
+        } else if line.starts_with("SwapFree:") {
+            if let Some(value) = line.split_whitespace().nth(1) {
+                free_swap = value.parse::<u64>().unwrap_or(0);
+                number_read += 1;
+            }
+        }
+        if number_read >= 2 {
+            break;
+        }
+    }
+
+    if number_read < 2 || total_swap == 0 {
+        return Err("no swap".to_string());
+    }
+
+    let used_swap = total_swap - free_swap;
+    let percent = if total_swap > 0 {
+        used_swap * 100 / total_swap
+    } else {
+        0
+    };
+
+    let used_memory_mb = used_swap / 1024;
+    let total_memory_mb = total_swap / 1024;
 
     let info = format!("{used_memory_mb}M / {total_memory_mb}M ({percent}%)");
     Ok(info)

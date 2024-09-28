@@ -1,12 +1,11 @@
 mod info;
 mod tools;
 use crate::tools::color::*;
-use info::info::{get_battery, get_memory};
+use info::info::{get_battery, get_memory, get_swap};
 use info::info::{
     get_cpu_info, get_disk, get_distro, get_gpu, get_kernel, get_model,
     get_resolution, get_shell, get_terminal, get_uptime, get_user, get_wm,
 };
-use libmacchina::{traits::GeneralReadout as _, GeneralReadout};
 use tools::{format_data, logo::*, split_by_newline_new};
 
 enum Os {
@@ -17,7 +16,6 @@ enum Os {
 }
 
 fn main() {
-    let general_readout = GeneralReadout::new();
     let mut info: Vec<String> = Vec::new();
     let mut os_name: Os = Os::Other;
 
@@ -40,15 +38,15 @@ fn main() {
         Err(_) => {}
     }
 
-    // match get_gpu(&general_readout) {
-    //     Ok(gpu) => {
-    //         for item in gpu {
-    //             let gpu_info = format_data(" ", &item, _CYAN);
-    //             info.push(gpu_info);
-    //         }
-    //     }
-    //     Err(_) => {}
-    // }
+    match get_gpu() {
+        Ok(gpu) => {
+            for item in gpu {
+                let gpu_info = format_data(" ", &item, _CYAN);
+                info.push(gpu_info);
+            }
+        }
+        Err(_) => {}
+    }
 
     match get_disk() {
         Ok(disk) => {
@@ -60,8 +58,16 @@ fn main() {
 
     match get_memory() {
         Ok(mem) => {
-            let mem_info = format_data("󰍛 ", &mem, _CYAN);
+            let mem_info = format_data("󰑭 ", &mem, _CYAN);
             info.push(mem_info);
+        }
+        Err(_) => {}
+    }
+
+    match get_swap() {
+        Ok(mem) => {
+            let swap_info = format_data("󰓡 ", &mem, _CYAN);
+            info.push(swap_info);
         }
         Err(_) => {}
     }
