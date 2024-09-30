@@ -4,7 +4,6 @@ use std::io;
 use std::io::BufRead;
 use std::path::Path;
 
-
 pub fn get_device_name_pci(vendor_id: &str, device_id: &str) -> io::Result<Option<String>> {
     let path_hwdata = Path::new("/usr/share/hwdata/pci.ids");
     let path_misc = Path::new("/usr/share/misc/pci.ids");
@@ -17,7 +16,7 @@ pub fn get_device_name_pci(vendor_id: &str, device_id: &str) -> io::Result<Optio
     let reader = io::BufReader::new(file);
 
     let mut device_name = None;
-    let mut current_vendor = None;
+    let mut find_vendor = false;
 
     for line in reader.lines() {
         let line = line?;
@@ -25,24 +24,21 @@ pub fn get_device_name_pci(vendor_id: &str, device_id: &str) -> io::Result<Optio
             continue;
         }
 
-        if line.split_whitespace().count() >= 2 {
-            let parts: Vec<&str> = line.split_whitespace().collect();
-            let id = parts[0];
+        let id = &line[0..4];
+
+        if find_vendor == false {
             if id == vendor_id.to_string() {
-                current_vendor = Some(parts[1..].join(" "));
+                find_vendor = true;
                 continue;
             }
         }
 
-        if let Some(_) = &current_vendor {
-            let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() >= 3 {
-                let id = parts[0];
-                let name = parts[1..].join(" ");
-                if id == device_id.to_string() {
-                    device_name = Some(format!("{}", name));
-                    break;
-                }
+        if find_vendor == true {
+            let id = &line[1..5];
+            let name = &line[7..];
+            if id == device_id.to_string() {
+                device_name = Some(format!("{}", name));
+                break;
             }
         }
     }
