@@ -1,16 +1,13 @@
 mod info;
 mod tools;
 use crate::tools::color::*;
+use info::info::{get_battery, get_memory, get_swap};
 use info::info::{
-    get_battery, get_cpu_info, get_de, get_disk, get_distro, get_gpu, get_kernel, get_memory,
-    get_model, get_packages, get_resolution, get_resolution_x11, get_shell, get_terminal,
-    get_uptime, get_user, get_wm,
+    get_cpu_info, get_disk, get_distro, get_gpu, get_kernel, get_model, get_resolution, get_shell,
+    get_terminal, get_uptime, get_user, get_wm,
 };
-use libmacchina::{
-    traits::GeneralReadout as _, traits::KernelReadout as _, traits::PackageReadout as _,
-    GeneralReadout, KernelReadout, PackageReadout,
-};
-use tools::{format_data, logo::*, split_by_newline_new};
+use tools::split_by_newline_new;
+use tools::{format_data, logo::*};
 
 enum Os {
     Arch,
@@ -20,14 +17,13 @@ enum Os {
 }
 
 fn main() {
-    let general_readout = GeneralReadout::new();
     let mut info: Vec<String> = Vec::new();
     let mut os_name: Os = Os::Other;
 
     let hardware_info = "┌───────── Hardware Information ─────────┐ ".to_string();
     info.push(hardware_info);
 
-    match get_model(&general_readout) {
+    match get_model() {
         Ok(model) => {
             let model_info = format_data("󰌢 ", &model, _CYAN);
             info.push(model_info);
@@ -35,7 +31,7 @@ fn main() {
         Err(_) => {}
     }
 
-    match get_cpu_info(&general_readout) {
+    match get_cpu_info() {
         Ok(cpu) => {
             let cpu_info = format_data(" ", &cpu, _CYAN);
             info.push(cpu_info);
@@ -43,7 +39,7 @@ fn main() {
         Err(_) => {}
     }
 
-    match get_gpu(&general_readout) {
+    match get_gpu() {
         Ok(gpu) => {
             for item in gpu {
                 let gpu_info = format_data(" ", &item, _CYAN);
@@ -63,21 +59,23 @@ fn main() {
 
     match get_memory() {
         Ok(mem) => {
-            let mem_info = format_data("󰍛 ", &mem, _CYAN);
+            let mem_info = format_data("󰑭 ", &mem, _CYAN);
             info.push(mem_info);
         }
         Err(_) => {}
     }
 
-    match get_resolution(&general_readout) {
+    match get_swap() {
+        Ok(mem) => {
+            let swap_info = format_data("󰓡 ", &mem, _CYAN);
+            info.push(swap_info);
+        }
+        Err(_) => {}
+    }
+
+    match get_resolution() {
         Ok(resolution) => {
-            let mut resolution_tmp = resolution.clone();
-            if &resolution.len() < &2 {
-                match get_resolution_x11() {
-                    Ok(val) => resolution_tmp = val,
-                    Err(_) => {}
-                }
-            }
+            let resolution_tmp = resolution;
             let res_info = format_data(" ", &resolution_tmp, _CYAN);
             info.push(res_info);
         }
@@ -95,7 +93,7 @@ fn main() {
     let software_info = "├───────── Software Information ─────────┤".to_string();
     info.push(software_info);
 
-    match get_user(&general_readout) {
+    match get_user() {
         Ok(user) => {
             let user_info = format_data(" ", &user, _CYAN);
             info.push(user_info);
@@ -103,7 +101,7 @@ fn main() {
         Err(_) => {}
     }
 
-    match get_distro(&general_readout) {
+    match get_distro() {
         Ok(distro) => {
             let os = distro.split(' ').next().unwrap();
             if os == "Arch" {
@@ -127,8 +125,7 @@ fn main() {
         Err(_) => {}
     }
 
-    let kernel_readout = KernelReadout::new();
-    match get_kernel(&kernel_readout) {
+    match get_kernel() {
         Ok(kernel) => {
             let kernel_info = format_data(" ", &kernel, _CYAN);
             info.push(kernel_info);
@@ -136,22 +133,14 @@ fn main() {
         Err(_) => {}
     }
 
-    match get_wm(&general_readout) {
+    match get_wm() {
         Ok(wm) => {
             let wm_info = format_data(" ", &wm, _CYAN);
             info.push(wm_info);
         }
         Err(_) => {}
     }
-    match get_de(&general_readout) {
-        Ok(de) => {
-            let de_info = format_data(" ", &de, _CYAN);
-            info.push(de_info);
-        }
-        Err(_) => {}
-    }
-
-    match get_shell(&general_readout) {
+    match get_shell() {
         Ok(shell) => {
             let mut shell_n = "";
             for _i in 0..1 {
@@ -163,7 +152,7 @@ fn main() {
         Err(_) => {}
     }
 
-    match get_terminal(&general_readout) {
+    match get_terminal() {
         Ok(terminal) => {
             let mut terminal_n = "";
             for _i in 0..1 {
@@ -175,18 +164,25 @@ fn main() {
         Err(_) => {}
     }
 
-    let package_readout = PackageReadout::new();
-    match get_packages(&package_readout) {
-        Ok(packages) => {
-            for package in packages {
+    match os_name {
+        Os::Arch => match info::info::count_pacman() {
+            Ok(package) => {
                 let package_info = format_data("󰏖 ", &package, _CYAN);
                 info.push(package_info);
             }
-        }
-        Err(_) => {}
+            Err(_) => {}
+        },
+        Os::Debian | Os::Ubuntu => match info::info::count_dpkg() {
+            Ok(package) => {
+                let package_info = format_data("󰏖 ", &package, _CYAN);
+                info.push(package_info);
+            }
+            Err(_) => {}
+        },
+        Os::Other => {}
     }
 
-    match get_uptime(&general_readout) {
+    match get_uptime() {
         Ok(time) => {
             let time_info = format_data("󰅐 ", &time, _CYAN);
             info.push(time_info);
@@ -236,9 +232,9 @@ fn print_left_to_right(left: &mut Vec<String>, right: &mut Vec<String>) {
         right_len
     };
 
+    print!("{}", "\x1B[?7l");
+
     for i in 0..max_len {
-        crossterm::execute!(std::io::stdout(), crossterm::terminal::DisableLineWrap)
-            .unwrap_or_default();
         if i < left.len() {
             print!("{}", left[i]);
         }
@@ -247,7 +243,7 @@ fn print_left_to_right(left: &mut Vec<String>, right: &mut Vec<String>) {
         }
 
         println!();
-        crossterm::execute!(std::io::stdout(), crossterm::terminal::EnableLineWrap)
-            .unwrap_or_default();
     }
+
+    print!("{}", "\x1B[?7h");
 }
