@@ -64,8 +64,8 @@ pub fn read_pci_devices_and_find_gpu() -> io::Result<Vec<(String, String)>> {
                 let class_id = &modalias_trimmed[44..46];
 
                 if class_id == "03" {
-                    let vendor_id = &modalias_trimmed[9..13];
-                    let device_id = &modalias_trimmed[18..22];
+                    let vendor_id = &modalias_trimmed[9..13].to_lowercase();
+                    let device_id = &modalias_trimmed[18..22].to_lowercase();
 
                     devices.push((vendor_id.to_string(), device_id.to_string()));
                 }
