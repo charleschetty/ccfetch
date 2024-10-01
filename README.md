@@ -1,32 +1,36 @@
 # ccfetch
-A neofetch like system information tool written in rust. Which is super fast, even faster than [fastfetch](https://github.com/fastfetch-cli/fastfetch) 
 
-![](https://raw.githubusercontent.com/charleschetty/ccfetch/dev/shots/2024-09-30_16-46.png)
+A neofetch like system information tool written in rust. Which is super fast, even faster than [fastfetch](https://github.com/fastfetch-cli/fastfetch)
 
-Currently, ccfetch only support Arch, Debian, and Ubuntu, other Linux distribution/OS may work, but 
-the logo will be displayed as ["TUX"](https://en.wikipedia.org/wiki/Tux_(mascot)). 
+![screenshot](/screenshots/screenshot1.png)
 
-# Installation
+Currently, ccfetch only supports Arch, Debian, and Ubuntu, but the logo will be displayed as ["TUX"](https://en.wikipedia.org/wiki/Tux_(mascot)) if you use other distributions
 
-Install [Rust](https://www.rust-lang.org/tools/install) if you don't have. 
+## Installation
+
+Download from [actions](https://github.com/charleschetty/ccfetch/actions/workflows/build.yml)
+
+### Build from source
+
+> You should install [rust](https://www.rust-lang.org/tools/install) first
 
 ```shell
+git clone https://github.com/charleschetty/ccfetch
+cd ccfetch
 cargo build --release
-# copy ccfetch from target/release to desired path you want
+# then copy ccfetch under target/release/ to desired path you want
 ```
 
-*note : In order to display icons correctly in the  terminal, you should install [nerd font](https://github.com/ryanoasis/nerd-fonts) first.*
+*note : In order to display icons correctly in the terminal, you should install [nerd font](https://github.com/ryanoasis/nerd-fonts) first.*
 
-# Todo
+## Todo
 
-- [ ] More logos
-- [ ] User configuration 
+- [ ] More distribution logos
+- [ ] User configuration
 
+## Benchmark
 
-
-# Benchmark
-
-![](https://raw.githubusercontent.com/charleschetty/ccfetch/dev/shots/2024-09-30_17-09.png)
+![benchmark](/screenshots/benchmark.png)
 
 I use AMD 4800u ,and the [fastfetch](https://github.com/fastfetch-cli/fastfetch) was compiled with :
 
@@ -39,8 +43,8 @@ add_compile_options(
 )
 ```
 
-and the jsonc file I use is in <code>benchmark/ </code>, I configure it from the <code>fastfetch/presets/examples/2.jsonc</code>
+and the jsonc file I use is in `benchmark/`, I configure it from the `fastfetch/presets/examples/2.jsonc`
 
-# Reference 
+## Reference
 
 This project inspired by [pfetch-rs](https://github.com/Gobidev/pfetch-rs), [treefetch](https://github.com/angelofallars/treefetch),  [macchina](https://github.com/Macchina-CLI/macchina) ,[fastfetch](https://github.com/fastfetch-cli/fastfetch)

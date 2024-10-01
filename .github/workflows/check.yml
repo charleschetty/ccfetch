@@ -1,0 +1,24 @@
+name: Check & Test
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    types:
+      - opened
+
+jobs:
+  check_and_test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Prepare rust env
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Check code
+        run: cargo check
+      - name: Test
+        run: cargo test
