@@ -43,6 +43,8 @@ add_compile_options(
 )
 ```
 
+`$ cmake .. -GNinja -L | grep -oP 'PACKAGES_DISABLE_\w+' | grep -v PACMAN | sed -e 's/.*/-D\0=ON/' | xargs cmake .. -GNinja -DCMAKE_BUILD_TYPE=Release -DENABLE_EMBEDDED_PCIIDS=ON`
+
 and the jsonc file I use is in `benchmark/`, I configure it from the `fastfetch/presets/examples/2.jsonc`
 
 ## Reference
