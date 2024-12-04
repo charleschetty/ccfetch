@@ -4,7 +4,7 @@ use std::io;
 use std::io::BufRead;
 use std::path::Path;
 
-pub fn get_device_name_pci(vendor_id: &str, device_id: &str) -> io::Result<Option<String>> {
+pub fn get_device_name_pci(vendor_id: &str, device_id: &str) -> io::Result<(Option<String>, Option<String>)> {
     let path_hwdata = Path::new("/usr/share/hwdata/pci.ids");
     let path_misc = Path::new("/usr/share/misc/pci.ids");
     let file;
@@ -17,6 +17,7 @@ pub fn get_device_name_pci(vendor_id: &str, device_id: &str) -> io::Result<Optio
 
     let mut device_name = None;
     let mut find_vendor = false;
+    let mut vender_name = Some(String::new());
 
     for line in reader.lines() {
         let line = line?;
@@ -29,6 +30,7 @@ pub fn get_device_name_pci(vendor_id: &str, device_id: &str) -> io::Result<Optio
         if find_vendor == false {
             if id == vendor_id.to_string() {
                 find_vendor = true;
+                vender_name = Some(line[6..].to_owned());
                 continue;
             }
         }
@@ -37,13 +39,13 @@ pub fn get_device_name_pci(vendor_id: &str, device_id: &str) -> io::Result<Optio
             let id = &line[1..5];
             let name = &line[7..];
             if id == device_id.to_string() {
-                device_name = Some(format!("{}", name));
+                device_name = Some(format!("{}" , name));
                 break;
             }
         }
     }
 
-    Ok(device_name)
+    Ok( ( vender_name,   device_name))
 }
 
 pub fn read_pci_devices_and_find_gpu() -> io::Result<Vec<(String, String)>> {
