@@ -33,8 +33,10 @@ fn main() {
 
     match get_cpu_info() {
         Ok(cpu) => {
-            let cpu_info = format_data(" ", &cpu, _CYAN);
-            info.push(cpu_info);
+            for item in cpu {
+                let cpu_info = format_data(" ", &item, _CYAN);
+                info.push(cpu_info);
+            }
         }
         Err(_) => {}
     }
