@@ -53,8 +53,10 @@ fn main() {
 
     match get_disk() {
         Ok(disk) => {
-            let disk_info = format_data(" ", &disk, _CYAN);
-            info.push(disk_info);
+            for item in disk {
+                let disk_info = format_data(" ", &item, _CYAN);
+                info.push(disk_info);
+            }
         }
         Err(_) => {}
     }

@@ -120,8 +120,7 @@ pub fn get_gpu() -> Result<Vec<String>, String> {
     Ok(gpus)
 }
 
-pub fn get_disk() -> Result<String, String> {
-    let path = "/";
+fn get_disk_state(path: String) -> Result<(u64, u64, u64), String> {
     let c_path = CString::new(path).expect("CString::new failed");
 
     let mut stat: statvfs = unsafe { mem::zeroed() };
@@ -142,25 +141,45 @@ pub fn get_disk() -> Result<String, String> {
 
     let total_space_gb = total_space / (1024 * 1024 * 1024);
     let used_space_gb = used_space / (1024 * 1024 * 1024);
-
+    Ok((used_space_gb, total_space_gb, percent))
+}
+pub fn get_disk() -> Result<Vec<String>, String> {
     let path = Path::new("/proc/mounts");
     let file = File::open(&path).map_err(|_| "can not open /proc/mounts".to_string())?;
     let reader = BufReader::new(file);
+    let mut disks_info = Vec::new();
 
-    let mut type_of_filesystem = String::new();
+    let mut disks: HashMap<String, bool> = HashMap::new();
     for line in reader.lines() {
         let line = line.map_err(|_| "can not read /proc/mounts".to_string())?;
         let parts: Vec<&str> = line.split_whitespace().collect();
 
-        if parts.get(1) == Some(&"/") {
-            type_of_filesystem = parts.get(2).unwrap_or(&"").to_string();
-            break;
+        let dev_name = parts.get(0).unwrap().to_string();
+        if dev_name.starts_with("/dev") {
+            // println!("{}", line);
+            let dev_type = parts.get(2).unwrap().to_string();
+            if dev_type == "zsf" || dev_type == "btrfs" || dev_type == "ext4" {
+                match disks.get(&dev_name) {
+                    Some(_) => {}
+                    None => {
+                        disks.insert(dev_name, true);
+
+                        let path_this = parts.get(1).unwrap().to_string();
+                        let res_tmp = get_disk_state(path_this).unwrap();
+                        let total = res_tmp.1;
+                        let used = res_tmp.0;
+                        let percent_this = res_tmp.2;
+                        let info = format!("{used}G / {total}G ({percent_this}%) - {dev_type}");
+                        disks_info.push(info);
+                    }
+                }
+            }
+        } else {
+            continue;
         }
     }
 
-    let info = format!("{used_space_gb}G / {total_space_gb}G ({percent}%) - {type_of_filesystem}");
-
-    Ok(info)
+    Ok(disks_info)
 }
 
 pub fn get_memory() -> Result<String, String> {
