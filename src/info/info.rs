@@ -1,4 +1,5 @@
 use libc::{c_ulong, statvfs};
+use std::collections::HashMap;
 use std::io::{self, BufRead, BufReader};
 use std::os::raw::c_char;
 use std::path::PathBuf;
@@ -9,50 +10,68 @@ use crate::tools::get_parent;
 use crate::tools::pci::{get_device_name_pci, get_gpu_vendor_name, read_pci_devices_and_find_gpu};
 
 pub fn get_cpu_info() -> Result<Vec<String>, String> {
+    struct Cpuinfostruct {
+        model_name: String,
+        num_cpu_cores: i32,
+        number_processor: i32,
+    }
     let mut cpus = Vec::new();
     let cpuinfo = fs::read_to_string("/proc/cpuinfo").map_err(|e| e.to_string())?;
 
-    let mut number_processor = 0;
-    let mut num_cpu_cores: Option<&str> = None;
-    let mut model_name: String = String::new();
-    let mut is_get_cpu_core = false;
-    let mut is_get_model_name = false;
+    let mut physical_cpus: HashMap<i32, Cpuinfostruct> = HashMap::new();
 
-    let mut physical_id = 0;
+    let mut last_model_name = String::new();
+    let mut last_physical_id = 0;
     for line in cpuinfo.lines() {
         if line.starts_with("model name") {
-            if !is_get_model_name {
-                model_name = line.split(':').nth(1).unwrap().trim().to_string();
-                is_get_model_name = true;
-            }
+            last_model_name = line.split(':').nth(1).unwrap().trim().to_string();
         }
         if line.starts_with("physical id") {
-            number_processor += 1;
             let physical_id_tmp_str = line.split_whitespace().last();
             let mut physical_id_tmp = 0;
             match physical_id_tmp_str {
-                Some(val) => physical_id_tmp = val.parse::<i32>().unwrap(),
+                Some(val) => {
+                    physical_id_tmp = val.parse::<i32>().unwrap();
+                    last_physical_id = physical_id_tmp;
+                }
                 None => {}
             }
 
-            if physical_id_tmp != physical_id {
-                let num_cpu_cores = num_cpu_cores.unwrap_or("unknown cpu cores");
-                let cpu_info = format!("{} ({}/{})", model_name, num_cpu_cores, number_processor);
-                cpus.push(cpu_info);
-                is_get_cpu_core = false;
-                is_get_model_name = false;
-                number_processor = 1;
-                physical_id = physical_id_tmp;
+            match physical_cpus.get_mut(&physical_id_tmp) {
+                None => {
+                    let thiscpu = Cpuinfostruct {
+                        model_name: last_model_name.clone(),
+                        num_cpu_cores: 0,
+                        number_processor: 1,
+                    };
+                    physical_cpus.insert(physical_id_tmp, thiscpu);
+                }
+                Some(val) => {
+                    val.number_processor += 1;
+                }
             }
         }
-        if !is_get_cpu_core && line.starts_with("cpu cores") {
-            num_cpu_cores = line.split_whitespace().last();
-            is_get_cpu_core = true;
+        if line.starts_with("cpu cores") {
+            let num_cpu_cores = line
+                .split_whitespace()
+                .last()
+                .unwrap()
+                .parse::<i32>()
+                .unwrap();
+            physical_cpus
+                .get_mut(&last_physical_id)
+                .unwrap()
+                .num_cpu_cores = num_cpu_cores;
         }
     }
-    let num_cpu_cores = num_cpu_cores.unwrap_or("unknown cpu cores");
-    let cpu_info = format!("{} ({}/{})", model_name, num_cpu_cores, number_processor);
-    cpus.push(cpu_info);
+    for item in physical_cpus {
+        let cpu_info = format!(
+            "{} ({}/{})",
+            item.1.model_name, item.1.num_cpu_cores, item.1.number_processor
+        );
+
+        cpus.push(cpu_info);
+    }
 
     Ok(cpus)
 }
