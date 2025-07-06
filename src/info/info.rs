@@ -429,6 +429,22 @@ pub fn count_dpkg() -> io::Result<String> {
     return Ok(format!("{} (dpkg)", count));
 }
 
+pub fn count_rpm() -> std::io::Result<String> {
+    use std::process::Command;
+    let output = Command::new("rpm").arg("-qa").output()?;
+
+    if output.status.success() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let count = stdout.lines().count();
+        Ok(format!("{} (rpm)", count))
+    } else {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "rpm command failed",
+        ))
+    }
+}
+
 pub fn get_uptime() -> Result<String, String> {
     let uptime_info = match fs::read_to_string("/proc/uptime") {
         Ok(info) => info,
