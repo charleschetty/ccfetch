@@ -12,6 +12,7 @@ use tools::{format_data, logo::*};
 enum Os {
     Arch,
     Debian,
+    Fedora,
     Ubuntu,
     Other,
 }
@@ -120,6 +121,10 @@ fn main() {
                 os_name = Os::Debian;
                 let disto_info = format_data(" ", &distro, _CYAN);
                 info.push(disto_info);
+            } else if os == "Fedora"{
+                os_name = Os::Fedora;
+                let distro_info = format_data(" ", &distro, _CYAN);
+                info.push(distro_info)
             } else {
                 os_name = Os::Other;
                 let disto_info = format_data("󰌽 ", &distro, _CYAN);
@@ -183,6 +188,13 @@ fn main() {
             }
             Err(_) => {}
         },
+        Os::Fedora => match info::info::count_rpm() {
+            Ok(package) => {
+                let package_info = format_data("󰏖 ", &package, _CYAN);
+                info.push(package_info)
+            }
+            Err(_) => {}
+        },
         Os::Other => {}
     }
 
@@ -208,6 +220,10 @@ fn main() {
         }
         Os::Debian => {
             let logo = Debianlogo::new(_CYAN).getlogo();
+            logo_info = split_by_newline_new(&logo);
+        }
+        Os::Fedora => {
+            let logo = Fedoralogo::new(_CYAN).getlogo();
             logo_info = split_by_newline_new(&logo);
         }
         Os::Ubuntu => {

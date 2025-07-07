@@ -15,7 +15,7 @@ impl Archlogo {
 " {color}{_BOLD}                  -`                    {_RESET}
  {color}{_BOLD}                 .o+`                   {_RESET}
  {color}{_BOLD}                `ooo/                   {_RESET}
- {color}{_BOLD}               `+oooo:                 {_RESET} 
+ {color}{_BOLD}               `+oooo:                 {_RESET}
  {color}{_BOLD}              `+oooooo:                 {_RESET}
  {color}{_BOLD}              -+oooooo+:                {_RESET}
  {color}{_BOLD}            `/:-:++oooo+:               {_RESET}
@@ -124,6 +124,44 @@ impl Logo for Debianlogo {
     }
 }
 
+pub struct Fedoralogo {
+    logo: String,
+}
+
+impl Fedoralogo {
+    pub fn new(color: &str) -> Self {
+        let fedora_logo = format!(
+"{color}{_BOLD}                                        {_RESET}
+{color}{_BOLD}                                         {_RESET}
+{color}{_BOLD}               .'ccccc:.                 {_RESET}
+{color}{_BOLD}          ,'ccccccccccccccc:.            {_RESET}
+{color}{_BOLD}       .';cccccccccccccccccccc:.         {_RESET}
+{color}{_BOLD}    .'ccccccccccccco@@@@bccccccc;        {_RESET}
+{color}{_BOLD}   .:cccccccccccccd@@cccq@@:cccccc,      {_RESET}
+{color}{_BOLD}   .:ccccccccccccc@@@ccccc@@Pccccccc;    {_RESET}
+{color}{_BOLD} ,:ccccccccccccccc@@@ccccccccccccccc:    {_RESET}
+{color}{_BOLD} ,:ccccccccccc@@@@@@c@@@@@@@ccccccccc:   {_RESET}
+{color}{_BOLD} ;ccccccccd@ccccccc@@@ccccccccccccccc:   {_RESET}
+{color}{_BOLD}  'ccccccc@@occccccc@@@ccccccccccccccc'  {_RESET}
+{color}{_BOLD}  ;ccccccq@@bcccccd@@Pccccccccccccc;     {_RESET}
+{color}{_BOLD}  ':ccccccccq@@@@@@@Pccccccccccccc:,     {_RESET}
+{color}{_BOLD}   'cccccccccccccccccccccccccccc:.       {_RESET}
+{color}{_BOLD}     ;ccccccccccccccccccccccc:,.         {_RESET}
+{color}{_BOLD}        ,'ccccccccccccccccc:.,           {_RESET}
+{color}{_BOLD}            .'ccccccccc:.                {_RESET}
+{color}{_BOLD}                                         {_RESET}"
+        );
+
+
+        Self { logo: fedora_logo }
+    }
+}
+
+impl Logo for Fedoralogo {
+    fn getlogo(&self) -> String {
+        self.logo.clone()
+    }
+}
 
 pub struct Otherlogo {
     logo: String,
