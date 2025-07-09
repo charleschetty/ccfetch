@@ -5,6 +5,7 @@ use std::os::raw::c_char;
 use std::path::PathBuf;
 use std::{ffi::CString, fs::File, path::Path};
 use std::{fs, mem};
+use rpm_pkg_count::count;
 
 use crate::tools::get_parent;
 use crate::tools::pci::{get_device_name_pci, get_gpu_vendor_name, read_pci_devices_and_find_gpu};
@@ -429,19 +430,15 @@ pub fn count_dpkg() -> io::Result<String> {
     return Ok(format!("{} (dpkg)", count));
 }
 
-pub fn count_rpm() -> std::io::Result<String> {
-    use std::process::Command;
-    let output = Command::new("rpm").arg("-qa").output()?;
+pub fn count_rpm() -> io::Result<String> {
+    let pkg_count = unsafe { count() };
 
-    if output.status.success() {
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let count = stdout.lines().count();
-        Ok(format!("{} (rpm)", count))
-    } else {
-        Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "rpm command failed",
-        ))
+    match pkg_count {
+        Some(n) => Ok(n.to_string()),
+        None => Err(io::Error::new(
+            io::ErrorKind::Other,
+            "Could not count RPM packages (librpm unavailable)",
+        )),
     }
 }
 
