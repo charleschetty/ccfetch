@@ -12,9 +12,12 @@ Download from [actions](https://github.com/charleschetty/ccfetch/actions/workflo
 
 ### Build from source
 
-> You should install [rust](https://www.rust-lang.org/tools/install) first
+> You should install [rust](https://www.rust-lang.org/tools/install) first.
 
 ```shell
+# If using a Fedora kernel, first
+sudo dnf install rpm-devel
+# otherwise
 git clone https://github.com/charleschetty/ccfetch
 cd ccfetch
 cargo build --release
