@@ -4,7 +4,7 @@ A neofetch like system information tool written in rust. Which is super fast, ev
 
 ![screenshot](/screenshots/screenshot1.png)
 
-Currently, ccfetch only supports Arch, Debian, and Ubuntu, but the logo will be displayed as ["TUX"](https://en.wikipedia.org/wiki/Tux_(mascot)) if you use other distributions
+Currently, ccfetch only supports Arch, Debian, Fedora, and Ubuntu, but the logo will be displayed as ["TUX"](https://en.wikipedia.org/wiki/Tux_(mascot)) if you use other distributions
 
 ## Installation
 
@@ -15,6 +15,8 @@ Download from [actions](https://github.com/charleschetty/ccfetch/actions/workflo
 > You should install [rust](https://www.rust-lang.org/tools/install) first
 
 ```shell
+# If using a Fedora kernel, first (optionally)
+sudo dnf install rpm-devel
 git clone https://github.com/charleschetty/ccfetch
 cd ccfetch
 cargo build --release
