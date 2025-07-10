@@ -25,6 +25,8 @@ cargo build --release
 
 *note : In order to display icons correctly in the terminal, you should install [nerd font](https://github.com/ryanoasis/nerd-fonts) first.*
 
+*note: If the GPU devices are not correctly displayed, please check whether the `pci.ids`  has been updated.*
+
 ## Todo
 
 - [ ] More distribution logos
