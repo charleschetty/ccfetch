@@ -77,6 +77,49 @@ pub fn read_pci_devices_and_find_gpu() -> io::Result<Vec<(String, String)>> {
 
     Ok(devices)
 }
+pub fn read_drm_devices_and_find_gpu() -> io::Result<Vec<(String, String)>> {
+    let drm_devices_path = "/sys/class/drm";
+    let mut devices = Vec::new();
+
+    for entry in fs::read_dir(drm_devices_path)? {
+        let entry = entry?;
+        let path = entry.path();
+        let path_atr = path.file_name().unwrap().to_string_lossy();
+
+        if !path_atr.starts_with("card") {
+            continue;
+        } else {
+            match path_atr.chars().nth(5) {
+                Some(val) => {
+                    if val == '-' {
+                        continue;
+                    }
+                }
+                None => {}
+            }
+        }
+
+        if path.is_dir() {
+            let modalias_file_path = path.join("device/modalias");
+
+            if modalias_file_path.exists() {
+                let modalias_content = fs::read_to_string(modalias_file_path)?;
+                let modalias_trimmed = modalias_content.trim();
+
+                let class_id = &modalias_trimmed[44..46];
+
+                if class_id == "03" {
+                    // println!("path : {:?}", path);
+                    let vendor_id = &modalias_trimmed[9..13].to_lowercase();
+                    let device_id = &modalias_trimmed[18..22].to_lowercase();
+
+                    devices.push((vendor_id.to_string(), device_id.to_string()));
+                }
+            }
+        }
+    }
+    Ok(devices)
+}
 
 struct Vendor {
     vendor_id: &'static str,

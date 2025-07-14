@@ -1,6 +1,6 @@
 use libc::{c_ulong, statvfs};
 use std::collections::HashMap;
-use std::io::{self, BufRead, BufReader};
+use std::io::{self, BufRead, BufReader, Write};
 use std::os::raw::c_char;
 use std::path::PathBuf;
 use std::{ffi::CString, fs::File, path::Path};
@@ -8,72 +8,79 @@ use std::{fs, mem};
 use rpm_pkg_count::count;
 
 use crate::tools::get_parent;
-use crate::tools::pci::{get_device_name_pci, get_gpu_vendor_name, read_pci_devices_and_find_gpu};
-
+use crate::tools::pci::{get_device_name_pci, get_gpu_vendor_name, read_drm_devices_and_find_gpu, read_pci_devices_and_find_gpu};
 pub fn get_cpu_info() -> Result<Vec<String>, String> {
-    struct Cpuinfostruct {
-        model_name: String,
-        num_cpu_cores: i32,
-        number_processor: i32,
+    let logical_cpus: usize = {
+        let mut set: libc::cpu_set_t = unsafe { mem::zeroed() };
+        if unsafe { libc::sched_getaffinity(0, mem::size_of::<libc::cpu_set_t>(), &mut set) } == 0 {
+            let mut count: u32 = 0;
+            for i in 0..libc::CPU_SETSIZE as usize {
+                if unsafe { libc::CPU_ISSET(i, &set) } {
+                    count += 1
+                }
+            }
+            count as usize
+        } else {
+            let cpus = unsafe { libc::sysconf(libc::_SC_NPROCESSORS_ONLN) };
+            if cpus < 1 {
+                1
+            } else {
+                cpus as usize
+            }
+        }
+    };
+
+    let cpuinfo;
+    let home_dir = unsafe { std::env::home_dir().unwrap_unchecked() };
+    let cache_dir = home_dir.join(".cache");
+
+    if !cache_dir.exists() {
+        unsafe { fs::create_dir_all(&cache_dir).unwrap_unchecked() };
     }
-    let mut cpus = Vec::new();
-    let cpuinfo = fs::read_to_string("/proc/cpuinfo").map_err(|e| e.to_string())?;
 
-    let mut physical_cpus: HashMap<i32, Cpuinfostruct> = HashMap::new();
+    let cache_cpuinfo = cache_dir.join("cpuinfo");
+    let proc_cpuinfo = "/proc/cpuinfo";
 
-    let mut last_model_name = String::new();
-    let mut last_physical_id = 0;
+    if Path::new(&cache_cpuinfo).exists() {
+        cpuinfo = unsafe { fs::read_to_string(cache_cpuinfo).unwrap_unchecked() };
+    } else {
+        cpuinfo = unsafe { fs::read_to_string(proc_cpuinfo).unwrap_unchecked() };
+        let mut file_a = fs::File::create(cache_cpuinfo).unwrap();
+        file_a.write_all(cpuinfo.as_bytes()).unwrap();
+    }
+
+    let mut model_name = String::new();
+    let mut phy_cores = String::new();
+    let mut _get_name = false;
+    let mut _get_physical_cores = false;
     for line in cpuinfo.lines() {
+        if _get_physical_cores && _get_name {
+            break;
+        }
         if line.starts_with("model name") {
-            last_model_name = line.split(':').nth(1).unwrap().trim().to_string();
-        }
-        if line.starts_with("physical id") {
-            let physical_id_tmp_str = line.split_whitespace().last();
-            let mut physical_id_tmp = 0;
-            match physical_id_tmp_str {
-                Some(val) => {
-                    physical_id_tmp = val.parse::<i32>().unwrap();
-                    last_physical_id = physical_id_tmp;
-                }
-                None => {}
-            }
-
-            match physical_cpus.get_mut(&physical_id_tmp) {
-                None => {
-                    let thiscpu = Cpuinfostruct {
-                        model_name: last_model_name.clone(),
-                        num_cpu_cores: 0,
-                        number_processor: 1,
-                    };
-                    physical_cpus.insert(physical_id_tmp, thiscpu);
-                }
-                Some(val) => {
-                    val.number_processor += 1;
-                }
-            }
-        }
-        if line.starts_with("cpu cores") {
-            let num_cpu_cores = line
-                .split_whitespace()
-                .last()
-                .unwrap()
-                .parse::<i32>()
-                .unwrap();
-            physical_cpus
-                .get_mut(&last_physical_id)
-                .unwrap()
-                .num_cpu_cores = num_cpu_cores;
+            model_name = line.split(':').nth(1).unwrap().trim().to_string();
+            _get_name = true;
+        } else if line.starts_with("cpu cores") {
+            phy_cores = line.split(':').nth(1).unwrap().trim().to_string();
+            _get_physical_cores = true;
         }
     }
-    for item in physical_cpus {
-        let cpu_info = format!(
-            "{} ({}/{})",
-            item.1.model_name, item.1.num_cpu_cores, item.1.number_processor
-        );
+    let mut packages: usize = 0;
+    for line in cpuinfo.lines() {
+        if line.starts_with("physical id") {
+            let physical_id_tmp_str = line.split_whitespace().last().unwrap();
+            if physical_id_tmp_str.parse::<usize>().unwrap() > packages {
+                packages += 1;
+            }
+        }
+    }
+    packages += 1;
 
+    let mut cpus = Vec::with_capacity(packages);
+    for _ in 0..packages {
+        let cpu_info = format!("{} ({}/{})", model_name, phy_cores, logical_cpus / packages);
         cpus.push(cpu_info);
     }
-
     Ok(cpus)
 }
 
@@ -96,19 +103,34 @@ pub fn get_model() -> Result<String, String> {
 }
 
 pub fn get_gpu() -> Result<Vec<String>, String> {
-    let devices = match read_pci_devices_and_find_gpu() {
+    let devices = match read_drm_devices_and_find_gpu() {
         Ok(devs) => devs,
-        Err(_) => return Err("no gpus".to_string()),
+        Err(_) => match read_pci_devices_and_find_gpu() {
+            Ok(val) => val,
+            Err(_) => return Err("no gpus".to_string()),
+        },
     };
     let mut gpus = Vec::new();
-    for (vendor, device) in devices {
+
+    let mut device_map = HashMap::<(String, String), u8>::new();
+    for item in &devices {
+        if device_map.contains_key(&item) {
+            *device_map.get_mut(&item).unwrap() += 1;
+        } else {
+            device_map.insert(item.clone(), 1);
+        }
+    }
+
+    for ((vendor, device), count) in device_map {
         let vender_name = get_gpu_vendor_name(&vendor);
         match get_device_name_pci(&vendor, &device) {
             Ok((Some(vender), Some(name))) => {
                 if vender_name == "Unknown Vendor" {
                     gpus.push(format!("{} {}", vender, name));
                 } else {
-                    gpus.push(format!("{} {}", vender_name, name));
+                    for _ in 0..count {
+                        gpus.push(format!("{} {}", vender_name, name));
+                    }
                 }
             }
             _ => {
@@ -116,7 +138,6 @@ pub fn get_gpu() -> Result<Vec<String>, String> {
                 return Err("Device not found.".to_string());
             }
         }
-
     }
     Ok(gpus)
 }

@@ -15,7 +15,7 @@ impl Archlogo {
 " {color}{_BOLD}                  -`                    {_RESET}
  {color}{_BOLD}                 .o+`                   {_RESET}
  {color}{_BOLD}                `ooo/                   {_RESET}
- {color}{_BOLD}               `+oooo:                 {_RESET}
+ {color}{_BOLD}               `+oooo:                  {_RESET}
  {color}{_BOLD}              `+oooooo:                 {_RESET}
  {color}{_BOLD}              -+oooooo+:                {_RESET}
  {color}{_BOLD}            `/:-:++oooo+:               {_RESET}
