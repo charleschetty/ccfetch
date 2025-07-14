@@ -1,14 +1,17 @@
 use libc::{c_ulong, statvfs};
+use rpm_pkg_count::count;
 use std::collections::HashMap;
 use std::io::{self, BufRead, BufReader, Write};
 use std::os::raw::c_char;
 use std::path::PathBuf;
 use std::{ffi::CString, fs::File, path::Path};
 use std::{fs, mem};
-use rpm_pkg_count::count;
 
 use crate::tools::get_parent;
-use crate::tools::pci::{get_device_name_pci, get_gpu_vendor_name, read_drm_devices_and_find_gpu, read_pci_devices_and_find_gpu};
+use crate::tools::pci::{
+    get_device_name_pci, get_gpu_vendor_name, read_drm_devices_and_find_gpu,
+    read_pci_devices_and_find_gpu,
+};
 pub fn get_cpu_info() -> Result<Vec<String>, String> {
     let logical_cpus: usize = {
         let mut set: libc::cpu_set_t = unsafe { mem::zeroed() };
@@ -85,20 +88,17 @@ pub fn get_cpu_info() -> Result<Vec<String>, String> {
 }
 
 pub fn get_model() -> Result<String, String> {
-    let product_name: String;
-    let product_version: String;
-
-    match fs::read_to_string("/sys/class/dmi/id/product_name") {
-        Ok(model) => product_name = model.trim().to_owned(),
+    let product_name: String = match fs::read_to_string("/sys/class/dmi/id/product_name") {
+        Ok(model) => model.trim().to_owned(),
         Err(_) => return Err("cannot read product name".to_string()),
-    }
+    };
 
-    match fs::read_to_string("/sys/class/dmi/id/product_version") {
-        Ok(model) => product_version = model.trim().to_owned(),
+    let product_version: String = match fs::read_to_string("/sys/class/dmi/id/product_version") {
+        Ok(model) => model.trim().to_owned(),
         Err(_) => return Err("cannot read product version".to_string()),
-    }
+    };
 
-    let cpu_info = format!("{} {}", product_name, product_version); // Correct usage of format!
+    let cpu_info = format!("{product_name} {product_version}"); // Correct usage of format!
     Ok(cpu_info)
 }
 
@@ -114,8 +114,8 @@ pub fn get_gpu() -> Result<Vec<String>, String> {
 
     let mut device_map = HashMap::<(String, String), u8>::new();
     for item in &devices {
-        if device_map.contains_key(&item) {
-            *device_map.get_mut(&item).unwrap() += 1;
+        if device_map.contains_key(item) {
+            *device_map.get_mut(item).unwrap() += 1;
         } else {
             device_map.insert(item.clone(), 1);
         }
@@ -126,15 +126,15 @@ pub fn get_gpu() -> Result<Vec<String>, String> {
         match get_device_name_pci(&vendor, &device) {
             Ok((Some(vender), Some(name))) => {
                 if vender_name == "Unknown Vendor" {
-                    gpus.push(format!("{} {}", vender, name));
+                    gpus.push(format!("{vender} {name}"));
                 } else {
                     for _ in 0..count {
-                        gpus.push(format!("{} {}", vender_name, name));
+                        gpus.push(format!("{vender_name} {name}"));
                     }
                 }
             }
             _ => {
-                gpus.push(format!("Unknown Device {}:{}", vendor, device));
+                gpus.push(format!("Unknown Device {vendor}:{device}"));
                 return Err("Device not found.".to_string());
             }
         }
@@ -167,7 +167,7 @@ fn get_disk_state(path: String) -> Result<(u64, u64, u64), String> {
 }
 pub fn get_disk() -> Result<Vec<String>, String> {
     let path = Path::new("/proc/mounts");
-    let file = File::open(&path).map_err(|_| "can not open /proc/mounts".to_string())?;
+    let file = File::open(path).map_err(|_| "can not open /proc/mounts".to_string())?;
     let reader = BufReader::new(file);
     let mut disks_info = Vec::new();
 
@@ -176,7 +176,7 @@ pub fn get_disk() -> Result<Vec<String>, String> {
         let line = line.map_err(|_| "can not read /proc/mounts".to_string())?;
         let parts: Vec<&str> = line.split_whitespace().collect();
 
-        let dev_name = parts.get(0).unwrap().to_string();
+        let dev_name = parts.first().unwrap().to_string();
         if dev_name.starts_with("/dev") {
             // println!("{}", line);
             let dev_type = parts.get(2).unwrap().to_string();
@@ -206,7 +206,7 @@ pub fn get_disk() -> Result<Vec<String>, String> {
 
 pub fn get_memory() -> Result<String, String> {
     let meminfo = fs::read_to_string("/proc/meminfo")
-        .map_err(|e| format!("can not read /proc/meminfo: {}", e))?;
+        .map_err(|e| format!("can not read /proc/meminfo: {e}"))?;
 
     let mut total_memory = 0;
     let mut free_memory = 0;
@@ -245,7 +245,7 @@ pub fn get_memory() -> Result<String, String> {
 
 pub fn get_swap() -> Result<String, String> {
     let meminfo = fs::read_to_string("/proc/meminfo")
-        .map_err(|e| format!("can not read /proc/meminfo: {}", e))?;
+        .map_err(|e| format!("can not read /proc/meminfo: {e}"))?;
 
     let mut total_swap = 0;
     let mut free_swap = 0;
@@ -291,8 +291,8 @@ pub fn get_resolution() -> Result<String, String> {
 
     match fs::read_dir(drm_path) {
         Ok(entries) => {
-            for entry in entries {
-                if let Ok(entry) = entry {
+            for entry in entries.flatten() {
+                {
                     let path = entry.path();
                     if path.is_dir() && path.file_name().unwrap().to_str().unwrap().contains("card")
                     {
@@ -309,7 +309,7 @@ pub fn get_resolution() -> Result<String, String> {
             }
             Err("can not find the resolution".to_string())
         }
-        Err(e) => Err(format!("can not read: {}", e)),
+        Err(e) => Err(format!("can not read: {e}")),
     }
 }
 
@@ -328,7 +328,7 @@ pub fn get_battery() -> Result<String, std::io::Error> {
 
     let status = fs::read_to_string(status_path)?.trim().to_string();
 
-    let output = format!("{}% [{}]", capacity, status);
+    let output = format!("{capacity}% [{status}]");
 
     Ok(output)
 }
@@ -448,7 +448,7 @@ pub fn count_dpkg() -> io::Result<String> {
     if in_package {
         count += 1;
     }
-    return Ok(format!("{} (dpkg)", count));
+    Ok(format!("{count} (dpkg)"))
 }
 
 pub fn count_rpm() -> io::Result<String> {
@@ -456,13 +456,11 @@ pub fn count_rpm() -> io::Result<String> {
 
     match pkg_count {
         Some(n) => Ok(n.to_string()),
-        None => Err(io::Error::new(
-            io::ErrorKind::Other,
+        None => Err(io::Error::other(
             "Could not count RPM packages (librpm unavailable)",
         )),
     }
 }
-
 
 pub fn get_uptime() -> Result<String, String> {
     let uptime_info = match fs::read_to_string("/proc/uptime") {
@@ -472,7 +470,7 @@ pub fn get_uptime() -> Result<String, String> {
     let parts: Vec<&str> = uptime_info.split_whitespace().collect();
 
     let uptime_seconds;
-    if let Some(uptime_seconds_) = parts.get(0) {
+    if let Some(uptime_seconds_) = parts.first() {
         let uptime_seconds_f64: f64 = uptime_seconds_.parse().unwrap();
         uptime_seconds = uptime_seconds_f64 as u64;
     } else {

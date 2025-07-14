@@ -7,12 +7,12 @@ use std::path::Path;
 pub fn get_device_name_pci(vendor_id: &str, device_id: &str) -> io::Result<(Option<String>, Option<String>)> {
     let path_hwdata = Path::new("/usr/share/hwdata/pci.ids");
     let path_misc = Path::new("/usr/share/misc/pci.ids");
-    let file;
-    if path_hwdata.exists() {
-        file = File::open(&path_hwdata)?;
+    
+    let file = if path_hwdata.exists() {
+        File::open(path_hwdata)?
     } else {
-        file = File::open(&path_misc)?;
-    }
+        File::open(path_misc)?
+    };
     let reader = io::BufReader::new(file);
 
     let mut device_name = None;
@@ -27,19 +27,17 @@ pub fn get_device_name_pci(vendor_id: &str, device_id: &str) -> io::Result<(Opti
 
         let id = &line[0..4];
 
-        if find_vendor == false {
-            if id == vendor_id.to_string() {
+        if !find_vendor
+            && id == vendor_id {
                 find_vendor = true;
                 vender_name = Some(line[6..].to_owned());
                 continue;
             }
-        }
-
-        if find_vendor == true {
+        else if find_vendor {
             let id = &line[1..5];
             let name = &line[7..];
-            if id == device_id.to_string() {
-                device_name = Some(format!("{}" , name));
+            if id == device_id {
+                device_name = Some(name.to_string());
                 break;
             }
         }
@@ -88,14 +86,9 @@ pub fn read_drm_devices_and_find_gpu() -> io::Result<Vec<(String, String)>> {
 
         if !path_atr.starts_with("card") {
             continue;
-        } else {
-            match path_atr.chars().nth(5) {
-                Some(val) => {
-                    if val == '-' {
-                        continue;
-                    }
-                }
-                None => {}
+        } else if let Some(val) = path_atr.chars().nth(5) {
+            if val == '-' {
+                continue;
             }
         }
 
