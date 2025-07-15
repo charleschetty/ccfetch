@@ -93,7 +93,7 @@ fn main() {
             os_name = Os::Debian;
             let disto_info = format_data(" ", &distro, _CYAN);
             info.push(disto_info);
-        } else if os == "Fedora"{
+        } else if os == "Fedora" {
             os_name = Os::Fedora;
             let distro_info = format_data(" ", &distro, _CYAN);
             info.push(distro_info)
@@ -132,18 +132,24 @@ fn main() {
     }
 
     match os_name {
-        Os::Arch => if let Ok(package) = info::info::count_pacman() {
-            let package_info = format_data("󰏖 ", &package, _CYAN);
-            info.push(package_info);
-        },
-        Os::Debian | Os::Ubuntu => if let Ok(package) = info::info::count_dpkg() {
-            let package_info = format_data("󰏖 ", &package, _CYAN);
-            info.push(package_info);
-        },
-        Os::Fedora => if let Ok(package) = info::info::count_rpm() {
-            let package_info = format_data("󰏖 ", &package, _CYAN);
-            info.push(package_info)
-        },
+        Os::Arch => {
+            if let Ok(package) = info::info::count_pacman() {
+                let package_info = format_data("󰏖 ", &package, _CYAN);
+                info.push(package_info);
+            }
+        }
+        Os::Debian | Os::Ubuntu => {
+            if let Ok(package) = info::info::count_dpkg() {
+                let package_info = format_data("󰏖 ", &package, _CYAN);
+                info.push(package_info);
+            }
+        }
+        Os::Fedora => {
+            if let Ok(package) = info::info::count_rpm() {
+                let package_info = format_data("󰏖 ", &package, _CYAN);
+                info.push(package_info)
+            }
+        }
         Os::Other => {}
     }
 
@@ -181,10 +187,10 @@ fn main() {
             logo_info = split_by_newline_new(&logo);
         }
     }
-    print_left_to_right(&mut logo_info, &mut info);
+    print_left_to_right(&mut logo_info, &info);
 }
 
-fn print_left_to_right(left: &mut Vec<String>, right: &mut [String]) {
+fn print_left_to_right(left: &mut Vec<String>, right: &[String]) {
     let left_len = left.len();
     let right_len = right.len();
 

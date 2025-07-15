@@ -1,6 +1,7 @@
 use libc::{c_ulong, statvfs};
 use rpm_pkg_count::count;
 use std::collections::HashMap;
+use std::ffi::CStr;
 use std::io::{self, BufRead, BufReader, Write};
 use std::os::raw::c_char;
 use std::path::PathBuf;
@@ -35,13 +36,13 @@ pub fn get_cpu_info() -> Result<Vec<String>, String> {
 
     let cpuinfo;
     let home_dir = unsafe { std::env::home_dir().unwrap_unchecked() };
-    let cache_dir = home_dir.join(".cache");
+    let global_cache_dir = home_dir.join(".cache/ccfetch");
 
-    if !cache_dir.exists() {
-        unsafe { fs::create_dir_all(&cache_dir).unwrap_unchecked() };
+    if !global_cache_dir.exists() {
+        unsafe { fs::create_dir_all(&global_cache_dir).unwrap_unchecked() };
     }
 
-    let cache_cpuinfo = cache_dir.join("cpuinfo");
+    let cache_cpuinfo = global_cache_dir.join("cpuinfo");
     let proc_cpuinfo = "/proc/cpuinfo";
 
     if Path::new(&cache_cpuinfo).exists() {
@@ -84,6 +85,7 @@ pub fn get_cpu_info() -> Result<Vec<String>, String> {
         let cpu_info = format!("{} ({}/{})", model_name, phy_cores, logical_cpus / packages);
         cpus.push(cpu_info);
     }
+
     Ok(cpus)
 }
 
@@ -98,8 +100,8 @@ pub fn get_model() -> Result<String, String> {
         Err(_) => return Err("cannot read product version".to_string()),
     };
 
-    let cpu_info = format!("{product_name} {product_version}"); // Correct usage of format!
-    Ok(cpu_info)
+    let model_info = format!("{product_name} {product_version}"); // Correct usage of format!
+    Ok(model_info)
 }
 
 pub fn get_gpu() -> Result<Vec<String>, String> {
@@ -163,6 +165,7 @@ fn get_disk_state(path: String) -> Result<(u64, u64, u64), String> {
 
     let total_space_gb = total_space / (1024 * 1024 * 1024);
     let used_space_gb = used_space / (1024 * 1024 * 1024);
+
     Ok((used_space_gb, total_space_gb, percent))
 }
 pub fn get_disk() -> Result<Vec<String>, String> {
@@ -178,7 +181,6 @@ pub fn get_disk() -> Result<Vec<String>, String> {
 
         let dev_name = parts.first().unwrap().to_string();
         if dev_name.starts_with("/dev") {
-            // println!("{}", line);
             let dev_type = parts.get(2).unwrap().to_string();
             if dev_type == "zsf" || dev_type == "btrfs" || dev_type == "ext4" {
                 match disks.get(&dev_name) {
@@ -336,7 +338,32 @@ pub fn get_battery() -> Result<String, std::io::Error> {
 pub fn get_user() -> Result<String, String> {
     match std::env::var("USER").or_else(|_| std::env::var("LOGNAME")) {
         Ok(username) => Ok(username),
-        Err(_) => Err("Failed to get username".to_string()),
+        Err(_) => {
+            use libc::{getpwuid_r, getuid, passwd};
+            use std::{ffi::CStr, mem, ptr};
+            let uid = unsafe { getuid() };
+            let mut pwd: passwd = unsafe { mem::zeroed() };
+            let mut buf: [i8; 1024] = unsafe { mem::zeroed() };
+            let mut result: *mut passwd = ptr::null_mut();
+
+            let ret = unsafe {
+                getpwuid_r(
+                    uid,
+                    &mut pwd,
+                    buf.as_mut_ptr() as *mut _,
+                    buf.len(),
+                    &mut result,
+                )
+            };
+
+            if ret == 0 && !result.is_null() {
+                let username_cstr = unsafe { CStr::from_ptr(pwd.pw_name) };
+                let username = username_cstr.to_string_lossy().into_owned();
+                Ok(username)
+            } else {
+                Err("Failed to get username".to_string())
+            }
+        }
     }
 }
 
@@ -346,12 +373,23 @@ pub fn get_distro() -> Result<String, String> {
         Err(_) => return Err("failed to read /etc/os-release".to_string()),
     };
 
+    const ARCH: &str = std::env::consts::ARCH;
+    let mut name = "";
+    let mut version: String = "".to_owned();
     for line in os_release_info.lines() {
+        if !name.is_empty() && !version.is_empty() {
+            break;
+        }
         if line.starts_with("NAME=") {
-            let name = line.trim_start_matches("NAME=").trim_matches('"');
-            return Ok(name.to_string());
+            name = line.trim_start_matches("NAME=").trim_matches('"');
+        } else if line.starts_with("VERSION") {
+            version = " ".to_owned() + line.trim_start_matches("VERSION=").trim_matches('"');
         }
     }
+    if !name.is_empty() {
+        return Ok(format!("{name}{version} {ARCH}"));
+    }
+
     Err("ERROR".to_string())
 }
 
@@ -370,29 +408,60 @@ pub fn get_kernel() -> Result<String, String> {
 }
 
 pub fn get_wm() -> Result<String, String> {
+    let sessiontype: String = match std::env::var("XDG_SESSION_TYPE") {
+        Ok(val) => val,
+        Err(_) => {
+            if std::env::var("WAYLAND_DISPLAY").is_ok() || std::env::var("WAYLAND_SOCKET").is_ok() {
+                "wayland".to_owned()
+            } else if std::env::var("DISPLAY").is_ok() {
+                "x11".to_owned()
+            } else if std::env::var("TERM").is_ok() {
+                "tty".to_owned()
+            } else {
+                return Err("".to_string());
+            }
+        }
+    };
+    if sessiontype == "tty" {
+        return Err("tty".to_uppercase());
+    }
     match std::env::var("XDG_CURRENT_DESKTOP") {
-        Ok(desktop) => Ok(desktop),
+        Ok(desktop) => Ok(format!("{desktop} ({sessiontype})")),
         Err(_) => Err("Failed to get desktop environment info:".to_string()),
     }
 }
 
 pub fn get_shell() -> Result<String, String> {
-    match std::env::var("SHELL") {
-        Ok(shell_path) => {
-            if let Some(shell_name) = Path::new(&shell_path).file_name() {
-                Ok(shell_name.to_string_lossy().to_string())
-            } else {
-                Err("Failed to extract shell name.".to_string())
-            }
+    const IGNORE: [&str; 5] = ["su", "sudo", "sh", ".sh", "time"];
+    let mut the_pid = unsafe { libc::getppid() }.to_string();
+    loop {
+        let stat_path = format!("/proc/{the_pid}/stat");
+        let content = fs::read_to_string(&stat_path).unwrap();
+        let line = content.trim_end();
+        let parts: Vec<&str> = line.split_whitespace().collect();
+
+        let raw_comm = parts.get(1).unwrap();
+        let name = raw_comm.trim_start_matches('(').trim_end_matches(')');
+        let ppid = parts.get(3).unwrap();
+
+        if IGNORE.contains(&name) {
+            the_pid = ppid.to_string();
+            continue;
         }
-        Err(_) => Err("Failed to get shell info".to_string()),
+        return Ok(name.to_owned());
     }
 }
 
 pub fn get_terminal() -> Result<String, String> {
     let mut terminal_pid = unsafe { libc::getppid() };
-    let shells = [
-        "sh", "su", "nu", "bash", "fish", "dash", "tcsh", "zsh", "ksh", "csh",
+    #[rustfmt::skip]
+    const SHELL_LIKE: &[&str] = &[
+        "sudo","su",
+        "sh","ash","bash","zsh","ksh","mksh","oksh",
+        "csh","tcsh","fish","dash","pwsh","nu",
+        "git-shell","elvish","oil.ovm",
+        "xonsh","login","proot","script","init","systemd",
+        "nvim","vim","emacs"
     ];
 
     loop {
@@ -401,8 +470,15 @@ pub fn get_terminal() -> Result<String, String> {
             .join("comm");
         if let Ok(terminal_name) = fs::read_to_string(path) {
             let terminal_name = terminal_name.trim();
-            if !shells.contains(&terminal_name) {
-                return Ok(terminal_name.to_string());
+            if !SHELL_LIKE.contains(&terminal_name) {
+                if terminal_name.starts_with("sshd") {
+                    let name = unsafe { libc::ttyname(libc::STDOUT_FILENO) };
+                    let cstr = unsafe { CStr::from_ptr(name) };
+                    let out_put = cstr.to_string_lossy().into_owned();
+                    return Ok(out_put);
+                } else {
+                    return Ok(terminal_name.to_string());
+                }
             }
             terminal_pid = match get_parent(terminal_pid) {
                 Some(pid) => pid,
@@ -428,15 +504,39 @@ pub fn count_pacman() -> Result<String, String> {
 
 pub fn count_dpkg() -> io::Result<String> {
     let path = "/var/lib/dpkg/status";
+    let metadata_status = fs::metadata(path)?;
+    let last_modified_system_status = metadata_status.modified()?;
+    let dur = last_modified_system_status
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap();
 
-    let file = File::open(path)?;
-    let reader = io::BufReader::new(file);
+    let dpkg_last_modified_time: u64 = dur.as_secs() * 1000 + dur.subsec_nanos() as u64 / 1000000;
+
+    let home_dir = unsafe { std::env::home_dir().unwrap_unchecked() };
+    let global_cache_dir = home_dir.join(".cache/ccfetch");
+    if !global_cache_dir.exists() {
+        unsafe { fs::create_dir_all(&global_cache_dir).unwrap_unchecked() };
+    }
+
+    let cache_dpkg = global_cache_dir.join("dpkg.txt");
+
+    if Path::new(&cache_dpkg).exists() {
+        let reader_cache = unsafe { fs::read_to_string(&cache_dpkg).unwrap_unchecked() };
+        let line = reader_cache.trim_end();
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        let cache_last_modify = parts.first().unwrap();
+        if *cache_last_modify == dpkg_last_modified_time.to_string() {
+            let count = parts.get(1).unwrap();
+            return Ok(format!("{count} (dpkg)"));
+        }
+    }
+
+    let reader = unsafe { fs::read_to_string(path).unwrap_unchecked() };
 
     let mut count = 0;
     let mut in_package = false;
 
     for line in reader.lines() {
-        let line = line?;
         if line.starts_with("Package: ") {
             in_package = true;
         } else if in_package && line.is_empty() {
@@ -448,6 +548,11 @@ pub fn count_dpkg() -> io::Result<String> {
     if in_package {
         count += 1;
     }
+
+    let mut file_a = fs::File::create(cache_dpkg).unwrap();
+    file_a
+        .write_all(format!("{dpkg_last_modified_time} {count}").as_bytes())
+        .unwrap();
     Ok(format!("{count} (dpkg)"))
 }
 
@@ -499,6 +604,7 @@ pub fn get_uptime() -> Result<String, String> {
     };
 
     let seconds = (uptime_seconds % 60).to_string() + "s";
+
     Ok(format!("{days} {hours} {minutes} {seconds}")
         .trim_start()
         .to_owned())
