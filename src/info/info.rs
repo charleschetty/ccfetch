@@ -34,24 +34,8 @@ pub fn get_cpu_info() -> Result<Vec<String>, String> {
         }
     };
 
-    let cpuinfo;
-    let home_dir = unsafe { std::env::home_dir().unwrap_unchecked() };
-    let global_cache_dir = home_dir.join(".cache/ccfetch");
-
-    if !global_cache_dir.exists() {
-        unsafe { fs::create_dir_all(&global_cache_dir).unwrap_unchecked() };
-    }
-
-    let cache_cpuinfo = global_cache_dir.join("cpuinfo");
     let proc_cpuinfo = "/proc/cpuinfo";
-
-    if Path::new(&cache_cpuinfo).exists() {
-        cpuinfo = unsafe { fs::read_to_string(cache_cpuinfo).unwrap_unchecked() };
-    } else {
-        cpuinfo = unsafe { fs::read_to_string(proc_cpuinfo).unwrap_unchecked() };
-        let mut file_a = fs::File::create(cache_cpuinfo).unwrap();
-        file_a.write_all(cpuinfo.as_bytes()).unwrap();
-    }
+    let cpuinfo = unsafe { fs::read_to_string(proc_cpuinfo).unwrap_unchecked() };
 
     let mut model_name = String::new();
     let mut phy_cores = String::new();

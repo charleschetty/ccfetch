@@ -6,6 +6,7 @@ use info::info::{
     get_cpu_info, get_disk, get_distro, get_gpu, get_kernel, get_model, get_resolution, get_shell,
     get_terminal, get_uptime, get_user, get_wm,
 };
+use tools::cache::HardwareCacheInfo;
 use tools::split_by_newline_new;
 use tools::{format_data, logo::*};
 
@@ -21,27 +22,47 @@ fn main() {
     let mut info: Vec<String> = Vec::new();
     let mut os_name: Os = Os::Other;
 
+    let mut cache = HardwareCacheInfo::new();
+    cache.read_hardware();
+
     let hardware_info = "┌───────── Hardware Information ─────────┐ ".to_string();
     info.push(hardware_info);
 
-    if let Ok(model) = get_model() {
+    if let Some(model) = cache.get_model() {
+        let model_info = format_data("󰌢 ", &model, _CYAN);
+        info.push(model_info);
+    } else if let Ok(model) = get_model() {
+        cache.add_cached_model(&model);
         let model_info = format_data("󰌢 ", &model, _CYAN);
         info.push(model_info);
     }
 
-    if let Ok(cpu) = get_cpu_info() {
+    if let Some(cpu) = cache.get_cpus() {
+        for item in cpu {
+            let cpu_info = format_data(" ", &item, _CYAN);
+            info.push(cpu_info);
+        }
+    } else if let Ok(cpu) = get_cpu_info() {
+        cache.add_cached_cpu(&cpu);
         for item in cpu {
             let cpu_info = format_data(" ", &item, _CYAN);
             info.push(cpu_info);
         }
     }
 
-    if let Ok(gpu) = get_gpu() {
+    if let Some(gpu) = cache.get_gpus() {
+        for item in gpu {
+            let gpu_info = format_data(" ", &item, _CYAN);
+            info.push(gpu_info);
+        }
+    } else if let Ok(gpu) = get_gpu() {
+        cache.add_cached_gpu(&gpu);
         for item in gpu {
             let gpu_info = format_data(" ", &item, _CYAN);
             info.push(gpu_info);
         }
     }
+    cache.store_hardware();
 
     if let Ok(disk) = get_disk() {
         for item in disk {

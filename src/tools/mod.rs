@@ -8,6 +8,7 @@ use color::_BOLD;
 use color::_RESET;
 pub mod logo;
 pub mod pci;
+pub mod cache;
 
 pub fn split_by_newline_new(logo: &str) -> Vec<String> {
     let mut split_vec: Vec<String> = Vec::new();
