@@ -366,7 +366,7 @@ pub fn get_distro() -> Result<String, String> {
         }
         if line.starts_with("NAME=") {
             name = line.trim_start_matches("NAME=").trim_matches('"');
-        } else if line.starts_with("VERSION") {
+        } else if line.starts_with("VERSION=") {
             version = " ".to_owned() + line.trim_start_matches("VERSION=").trim_matches('"');
         }
     }
